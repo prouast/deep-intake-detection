@@ -44,7 +44,7 @@ class Model(object):
         Returns:
             A tensor with shape [batch_size, num_classes]
         """
-        with tf.variable_scope(scope, custom_getter=self._custom_dtype_getter):
+        with tf.compat.v1.variable_scope(scope, custom_getter=self._custom_dtype_getter):
             channels_first = self.params.data_format == 'channels_first'
             # Generate slow and fast inputs
             if self.params.slowfast_alpha == 8:

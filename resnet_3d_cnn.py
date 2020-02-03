@@ -42,7 +42,7 @@ class Model(object):
 
     def __call__(self, inputs, is_training, scope=SCOPE):
         """Add operations to classify a batch of image sequences."""
-        with tf.variable_scope(scope, custom_getter=self._custom_dtype_getter):
+        with tf.compat.v1.variable_scope(scope, custom_getter=self._custom_dtype_getter):
 
             # Convert to channels_first if necessary (performance boost)
             if self.data_format == 'channels_first':

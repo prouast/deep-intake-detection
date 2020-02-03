@@ -1,9 +1,10 @@
-"""Run loop implemented for TF >= 1.9"""
+"""Run loop implemented for TF 1.15"""
 
 from tensorflow.python.platform import gfile
 import os
 import math
 import itertools
+from absl import logging
 import numpy as np
 import tensorflow as tf
 from tensorflow.python.client import device_lib
@@ -11,7 +12,7 @@ from tensorflow.contrib.memory_stats.python.ops.memory_stats_ops import BytesInU
 import best_checkpoint_exporter
 
 # Show debugging output
-tf.logging.set_verbosity(tf.logging.DEBUG)
+logging.set_verbosity(logging.DEBUG)
 
 
 def main(flags, model_fn, input_fn, parse_fn, serving_input_receiver_fn, warmstart_settings):
@@ -83,7 +84,7 @@ def main(flags, model_fn, input_fn, parse_fn, serving_input_receiver_fn, warmsta
         sort_key_fn=lambda x: -x.score)
 
     # Basic profiling
-    profiler_hook = tf.train.ProfilerHook(
+    profiler_hook = tf.estimator.ProfilerHook(
         save_steps=flags.save_checkpoints_steps*100,
         output_dir=flags.model_dir,
         show_memory=True)
@@ -206,7 +207,7 @@ def model_fn(features, labels, mode, params, model):
             targets=tf.cast(labels, tf.int32),
             weights=sample_weights)
         tf.identity(scaled_loss, name='seq2seq_loss')
-        tf.summary.scalar('loss/seq2seq_loss', scaled_loss)
+        tf.compat.v1.summary.scalar('loss/seq2seq_loss', scaled_loss)
 
     # Training on single for frames or with one label per sequence
     else:
@@ -221,20 +222,20 @@ def model_fn(features, labels, mode, params, model):
             labels=tf.cast(final_labels, tf.int32),
             logits=final_logits)
         scaled_loss = tf.reduce_mean(tf.multiply(unscaled_loss, sample_weights))
-        tf.summary.scalar('loss/scaled_loss', scaled_loss)
+        tf.compat.v1.summary.scalar('loss/scaled_loss', scaled_loss)
 
     # Compute loss with Weight decay
     l2_loss = params.l2_lambda * tf.add_n(
-        [tf.nn.l2_loss(v) for v in tf.trainable_variables()
+        [tf.nn.l2_loss(v) for v in tf.compat.v1.trainable_variables()
             if 'norm' not in v.name])
-    tf.summary.scalar('loss/l2_loss', l2_loss)
+    tf.compat.v1.summary.scalar('loss/l2_loss', l2_loss)
     loss = scaled_loss + l2_loss
 
     if is_training:
-        global_step = tf.train.get_or_create_global_step()
+        global_step = tf.compat.v1.train.get_or_create_global_step()
 
         def _decay_fn(learning_rate, global_step):
-            return tf.train.exponential_decay(
+            return tf.compat.v1.train.exponential_decay(
                 learning_rate=learning_rate, global_step=global_step,
                 decay_steps=params.steps_per_epoch, decay_rate=params.decay_rate)
 
@@ -251,10 +252,10 @@ def model_fn(features, labels, mode, params, model):
         # Learning rate
         learning_rate = _decay_fn(params.base_learning_rate, global_step)
         tf.identity(learning_rate, name='learning_rate')
-        tf.summary.scalar('training/learning_rate', learning_rate)
+        tf.compat.v1.summary.scalar('training/learning_rate', learning_rate)
 
         # The optimizer
-        optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate)
+        optimizer = tf.compat.v1.train.AdamOptimizer(learning_rate=learning_rate)
 
         if params.dtype == tf.float16:
             loss_scale_manager = tf.contrib.mixed_precision.ExponentialUpdateLossScaleManager(
@@ -268,8 +269,8 @@ def model_fn(features, labels, mode, params, model):
         # Filter vars to retain fine tuned vars
         grad_vars = _grad_filter(grad_vars)
 
-        tf.summary.scalar("training/global_gradient_norm",
-            tf.global_norm(list(zip(*grad_vars))[0]))
+        tf.compat.v1.summary.scalar("training/global_gradient_norm",
+            tf.linalg.global_norm(list(zip(*grad_vars))[0]))
 
         # Clip gradients
         grads, vars = zip(*grad_vars)
@@ -278,18 +279,18 @@ def model_fn(features, labels, mode, params, model):
 
         for grad, var in grad_vars:
             var_name = var.name.replace(":", "_")
-            tf.summary.histogram("gradients/%s" % var_name, grad)
-            tf.summary.scalar("gradient_norm/%s" % var_name, tf.global_norm([grad]))
-        tf.summary.scalar("loss", loss)
-        tf.summary.scalar("training/clipped_global_gradient_norm",
-            tf.global_norm(list(zip(*grad_vars))[0]))
+            tf.compat.v1.summary.histogram("gradients/%s" % var_name, grad)
+            tf.compat.v1.summary.scalar("gradient_norm/%s" % var_name, tf.linalg.global_norm([grad]))
+        tf.compat.v1.summary.scalar("loss", loss)
+        tf.compat.v1.summary.scalar("training/clipped_global_gradient_norm",
+            tf.linalg.global_norm(list(zip(*grad_vars))[0]))
 
         if params.dtype == tf.float16:
             minimize_op = loss_scale_optimizer.apply_gradients(grad_vars, global_step)
         else:
             minimize_op = optimizer.apply_gradients(grad_vars, global_step)
 
-        update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+        update_ops = tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.UPDATE_OPS)
         train_op = tf.group(minimize_op, update_ops)
 
     else:
@@ -297,13 +298,13 @@ def model_fn(features, labels, mode, params, model):
 
     # Calculate accuracy metrics - always done with final labels
     final_labels = tf.cast(final_labels, tf.int64)
-    accuracy = tf.metrics.accuracy(
+    accuracy = tf.compat.v1.metrics.accuracy(
         labels=final_labels, predictions=predictions['classes'])
-    mean_per_class_accuracy = tf.metrics.mean_per_class_accuracy(
+    mean_per_class_accuracy = tf.compat.v1.metrics.mean_per_class_accuracy(
         labels=final_labels, predictions=predictions['classes'],
         num_classes=params.num_classes)
-    tf.summary.scalar('metrics/accuracy', accuracy[1])
-    tf.summary.scalar('metrics/mean_per_class_accuracy',
+    tf.compat.v1.summary.scalar('metrics/accuracy', accuracy[1])
+    tf.compat.v1.summary.scalar('metrics/mean_per_class_accuracy',
         tf.reduce_mean(mean_per_class_accuracy[1]))
     metrics = {
         'metrics/accuracy': accuracy,
@@ -311,32 +312,32 @@ def model_fn(features, labels, mode, params, model):
 
     # Calculate class-specific metrics
     for i in range(params.num_classes):
-        class_precision = tf.metrics.precision_at_k(
+        class_precision = tf.compat.v1.metrics.precision_at_k(
             labels=final_labels, predictions=final_logits, k=1, class_id=i)
         class_recall = tf.metrics.recall_at_k(
             labels=final_labels, predictions=final_logits, k=1, class_id=i)
-        tf.summary.scalar('metrics/class_%d_precision' % i, class_precision[1])
-        tf.summary.scalar('metrics/class_%d_recall' % i, class_recall[1])
+        tf.compat.v1.summary.scalar('metrics/class_%d_precision' % i, class_precision[1])
+        tf.compat.v1.summary.scalar('metrics/class_%d_recall' % i, class_recall[1])
         metrics['metrics/class_%d_precision' % i] = class_precision
         metrics['metrics/class_%d_recall' % i] = class_recall
 
     # Log number of trainable model params
-    trainable_params = [tf.reduce_prod(v.shape) for v in tf.trainable_variables()]
-    tf.summary.scalar('model/trainable_params', sum(trainable_params))
+    trainable_params = [tf.reduce_prod(v.shape) for v in tf.compat.v1.trainable_variables()]
+    tf.compat.v1.summary.scalar('model/trainable_params', sum(trainable_params))
 
     # Log number of total model params
-    total_params = [tf.reduce_prod(v.shape) for v in tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES)]
-    tf.summary.scalar('model/total_params', sum(total_params))
+    total_params = [tf.reduce_prod(v.shape) for v in tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.GLOBAL_VARIABLES)]
+    tf.compat.v1.summary.scalar('model/total_params', sum(total_params))
 
     # Log estimated checkpoint size
     weights_size = [tf.reduce_prod(v.shape) * v.dtype.size
-        for v in tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES)]
-    tf.summary.scalar('model/weights_size_mb', sum(weights_size) / (1024 ** 2))
+        for v in tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.GLOBAL_VARIABLES)]
+    tf.compat.v1.summary.scalar('model/weights_size_mb', sum(weights_size) / (1024 ** 2))
 
     # Log estimated back and forward activation size
     activations_size = [tf.reduce_prod(v.shape) * v.dtype.size * tf.constant(2) \
-        * params.batch_size for v in tf.trainable_variables()]
-    tf.summary.scalar('model/activations_size_mb', sum(activations_size) / (1024 ** 2))
+        * params.batch_size for v in tf.compat.v1.trainable_variables()]
+    tf.compat.v1.summary.scalar('model/activations_size_mb', sum(activations_size) / (1024 ** 2))
 
     return tf.estimator.EstimatorSpec(
         mode=mode,
@@ -383,7 +384,7 @@ def add_image_summaries(features, params):
     if params.use_sequence_input:
         if frames is not None:
             for i in range(5):
-                tf.summary.image(name="frame" + str(i),
+                tf.compat.v1.summary.image(name="frame" + str(i),
                                 tensor=frames[i],
                                 max_outputs=params.sequence_length)
         if flows is not None:
@@ -391,20 +392,20 @@ def add_image_summaries(features, params):
                 temp = tf.map_fn(
                     fn=_flow_to_image,
                     elems=flows[i,0:params.sequence_length])
-                tf.summary.image(name="flow" + str(i),
+                tf.compat.v1.summary.image(name="flow" + str(i),
                                 tensor=temp,
                                 max_outputs=params.sequence_length)
     else:
         if frames is not None:
-            tf.summary.image('frames', frames, max_outputs=10)
+            tf.compat.v1.summary.image('frames', frames, max_outputs=10)
         if flows is not None:
             flows = tf.map_fn(_flow_to_image, flows[0:9])
-            tf.summary.image('flows', flows, max_outputs=10)
+            tf.compat.v1.summary.image('flows', flows, max_outputs=10)
 
 
 def predict_and_export_csv(estimator, eval_input_fn, parse_fn, eval_dir, seq_skip):
-    tf.logging.info("Working on {0}.".format(eval_dir))
-    tf.logging.info("Starting prediction...")
+    logging.info("Working on {0}.".format(eval_dir))
+    logging.info("Starting prediction...")
     predictions = estimator.predict(input_fn=eval_input_fn)
     pred_list = list(itertools.islice(predictions, None))
     pred_probs_1 = list(map(lambda item: item["probabilities"][1], pred_list))
@@ -422,7 +423,7 @@ def predict_and_export_csv(estimator, eval_input_fn, parse_fn, eval_dir, seq_ski
     id = id[seq_skip:]; seq_no = seq_no[seq_skip:]; labels = labels[seq_skip:]
     assert (len(labels)==num), "Lengths must match"
     name = os.path.normpath(eval_dir).split(os.sep)[-1]
-    tf.logging.info("Writing {0} examples to {1}.csv...".format(num, name))
+    logging.info("Writing {0} examples to {1}.csv...".format(num, name))
     pred_array = np.column_stack((id, seq_no, labels, pred_probs_1))
     np.savetxt("{0}.csv".format(name), pred_array, delimiter=",", fmt=['%i','%i','%i','%f'])
 
@@ -436,14 +437,14 @@ def _floats_feature(value):
 
 
 def predict_and_export_tfrecord(estimator, eval_input_fn, parse_fn, eval_dir, seq_skip):
-    tf.logging.info("Working on {0}.".format(eval_dir))
-    tf.logging.info("Starting prediction...")
+    logging.info("Working on {0}.".format(eval_dir))
+    logging.info("Starting prediction...")
     predictions = estimator.predict(input_fn=eval_input_fn)
     pred_list = list(itertools.islice(predictions, None))
     pred_fc7 = list(map(lambda item: item["fc7"], pred_list))
     pred_probs_1 = list(map(lambda item: item["probabilities"][1], pred_list))
     num = len(pred_fc7)
-    tf.logging.info("Getting labels...")
+    logging.info("Getting labels...")
     filenames = gfile.Glob(os.path.join(eval_dir, "*.tfrecord"))
     dataset = tf.data.TFRecordDataset(tf.data.Dataset.list_files(filenames))
     elem = dataset.map(parse_fn).make_one_shot_iterator().get_next()
@@ -456,7 +457,7 @@ def predict_and_export_tfrecord(estimator, eval_input_fn, parse_fn, eval_dir, se
     id = id[seq_skip:]; seq_no = seq_no[seq_skip:]; labels = labels[seq_skip:]
     name = os.path.normpath(eval_dir).split(os.sep)[-1]
     with tf.python_io.TFRecordWriter("{0}.tfrecord".format(name)) as tfrecord_writer:
-        tf.logging.info("Writing {0} examples to {1}.tfrecord...".format(num, name))
+        logging.info("Writing {0} examples to {1}.tfrecord...".format(num, name))
         assert (len(labels)==num), "Lengths must match"
         pred_fc7 = np.array(pred_fc7)
         for index in range(num):

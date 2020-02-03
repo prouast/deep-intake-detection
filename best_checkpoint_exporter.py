@@ -7,6 +7,7 @@ import glob
 import os
 import shutil
 import tensorflow as tf
+from absl import logging
 
 
 class Checkpoint(object):
@@ -50,7 +51,7 @@ class BestCheckpointExporter(tf.estimator.Exporter):
         super(BestCheckpointExporter, self).__init__()
 
     def _log(self, statement):
-        tf.logging.info('[{}] {}'.format(self.__class__.__name__, statement))
+        logging.info('[{}] {}'.format(self.__class__.__name__, statement))
 
     def export(self, estimator, export_path, checkpoint_path, eval_result,
                is_the_final_export):

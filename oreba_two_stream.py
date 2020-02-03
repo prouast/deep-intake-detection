@@ -44,7 +44,7 @@ class Model(object):
         Returns:
             A tensor with shape [batch_size, num_classes]
         """
-        with tf.variable_scope(scope, custom_getter=self._custom_dtype_getter):
+        with tf.compat.v1.variable_scope(scope, custom_getter=self._custom_dtype_getter):
             # Input for appearance is last frame in sequence
             frames = inputs[0] # [batch, seq, size, size, channels]
             appearance = frames[:,-1] # [batch, size, size, channels]
@@ -59,7 +59,7 @@ class Model(object):
                 appearance = tf.transpose(a=appearance, perm=[0, 3, 1, 2])
                 motion = tf.transpose(a=motion, perm=[0, 3, 1, 2])
 
-            with tf.variable_scope("motion", custom_getter=self._custom_dtype_getter):
+            with tf.compat.v1.variable_scope("motion", custom_getter=self._custom_dtype_getter):
                 if self.params.warmstart:
                     motion = tf.keras.layers.Conv2D(
                         filters=3,
@@ -72,7 +72,7 @@ class Model(object):
                     inputs=motion,
                     is_training=is_training,
                     params=self.params)
-            with tf.variable_scope("appearance", custom_getter=self._custom_dtype_getter):
+            with tf.compat.v1.variable_scope("appearance", custom_getter=self._custom_dtype_getter):
                 appearance = oreba_building_blocks.conv2d_layers(
                     inputs=appearance,
                     is_training=is_training,

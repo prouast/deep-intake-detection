@@ -40,7 +40,7 @@ class Model(object):
 
     def __call__(self, inputs, is_training, scope=SCOPE):
         """Add operations to learn features on a batch of images."""
-        with tf.variable_scope(scope, custom_getter=self._custom_dtype_getter):
+        with tf.compat.v1.variable_scope(scope, custom_getter=self._custom_dtype_getter):
 
             # Determine the number of channels
             num_channels = inputs.get_shape()[3]

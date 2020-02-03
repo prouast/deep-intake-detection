@@ -51,7 +51,7 @@ class Model(object):
         Returns:
             A tensor with shape [batch_size, num_classes]
         """
-        with tf.variable_scope(scope, custom_getter=self._custom_dtype_getter):
+        with tf.compat.v1.variable_scope(scope, custom_getter=self._custom_dtype_getter):
 
             # Input for appearance is last frame in sequence
             frames = inputs[0] # [batch, seq, size, size, channels]
@@ -88,7 +88,7 @@ class Model(object):
                 activation=tf.nn.relu,
                 name='conv2d_fix_channels')(motion)
 
-            with tf.variable_scope("motion", custom_getter=self._custom_dtype_getter):
+            with tf.compat.v1.variable_scope("motion", custom_getter=self._custom_dtype_getter):
 
                 # First conv layer
                 appearance = resnet_building_blocks.conv2d_fixed_padding(
@@ -116,7 +116,7 @@ class Model(object):
                     inputs=appearance, data_format=self.data_format)
                 appearance = tf.nn.relu(appearance)
 
-            with tf.variable_scope("appearance", custom_getter=self._custom_dtype_getter):
+            with tf.compat.v1.variable_scope("appearance", custom_getter=self._custom_dtype_getter):
 
                 # First conv layer
                 motion = resnet_building_blocks.conv2d_fixed_padding(
