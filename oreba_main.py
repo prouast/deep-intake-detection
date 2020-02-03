@@ -28,7 +28,7 @@ SEQ_LENGTH = 1
 NUM_SHARDS = 4
 DTYPE_MAP = {"fp16": tf.float16, "fp32": tf.float32}
 CATEGORY_MAP = {"main": 1, "sub": 2, "hand": 3, "utensil": 4}
-NUM_CLASSES_MAP = {"main": 3, "sub": 4, "hand": 4, "utensil": 7}
+NUM_CLASSES_MAP = {"main": 2, "sub": 3, "hand": 3, "utensil": 5}
 
 FLAGS = flags.FLAGS
 flags.DEFINE_float(name='base_learning_rate', default=3e-3,
