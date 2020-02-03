@@ -8,7 +8,7 @@ Find our published paper (here)[https://ieeexplore.ieee.org/document/8853283].
 
 We use `.tfrecord` files to feed data into the TensorFlow model.
 This includes [TV-L<sup>1</sup> optical flow](https://pequan.lip6.fr/~bereziat/cours/master/vision/papers/zach07.pdf), which is stored in the file alongside with raw frames and labels.
-A script and instructions for generating these files can be found at the (video-sensor-processing repository)[https://github.com/prouast/video-sensor-processing].
+A script and instructions for generating these files can be found at the [video-sensor-processing repository](https://github.com/prouast/video-sensor-processing).
 
 ## Train and evaluate deep neural network classifier
 
