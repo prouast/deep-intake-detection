@@ -2,7 +2,7 @@
 
 Implementation of various deep neural networks for detection of food and drink intake gestures from video.
 We use recordings from a 360-degree camera to predict frame-level labels.
-Find our published paper (here)[https://ieeexplore.ieee.org/document/8853283].
+Find our published paper [here](https://ieeexplore.ieee.org/document/8853283).
 
 ## Prepare data for TensorFlow
 
