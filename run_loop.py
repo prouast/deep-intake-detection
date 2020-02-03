@@ -121,9 +121,9 @@ def main(flags, model_fn, input_fn, parse_fn, serving_input_receiver_fn, warmsta
         seq_skip = flags.sequence_length - 1 if flags.use_sequence_input else 0
         predict_and_export_csv(estimator, eval_input_fn, parse_fn,
             flags.eval_dir, seq_skip)
-    elif flags.mode == "predict_and_export_tfrecords":
+    elif flags.mode == "predict_and_export_tfrecord":
         seq_skip = flags.sequence_length - 1 if flags.use_sequence_input else 0
-        predict_and_export_tfrecords(estimator, eval_input_fn, parse_fn,
+        predict_and_export_tfrecord(estimator, eval_input_fn, parse_fn,
             flags.eval_dir, seq_skip)
     elif flags.mode == "export_saved_model":
         export_saved_model(estimator, serving_input_receiver_fn)
@@ -410,7 +410,7 @@ def predict_and_export_csv(estimator, eval_input_fn, parse_fn, eval_dir, seq_ski
     pred_probs_1 = list(map(lambda item: item["probabilities"][1], pred_list))
     num = len(pred_probs_1)
     # Get labels and ids
-    filenames = gfile.Glob(os.path.join(eval_dir, "*.tfrecords"))
+    filenames = gfile.Glob(os.path.join(eval_dir, "*.tfrecord"))
     dataset = tf.data.TFRecordDataset(tf.data.Dataset.list_files(filenames))
     elem = dataset.map(parse_fn).make_one_shot_iterator().get_next()
     labels = []; id = []; seq_no = []; sess = tf.Session()
@@ -435,7 +435,7 @@ def _floats_feature(value):
     return tf.train.Feature(float_list=tf.train.FloatList(value=value.ravel()))
 
 
-def predict_and_export_tfrecords(estimator, eval_input_fn, parse_fn, eval_dir, seq_skip):
+def predict_and_export_tfrecord(estimator, eval_input_fn, parse_fn, eval_dir, seq_skip):
     tf.logging.info("Working on {0}.".format(eval_dir))
     tf.logging.info("Starting prediction...")
     predictions = estimator.predict(input_fn=eval_input_fn)
@@ -444,7 +444,7 @@ def predict_and_export_tfrecords(estimator, eval_input_fn, parse_fn, eval_dir, s
     pred_probs_1 = list(map(lambda item: item["probabilities"][1], pred_list))
     num = len(pred_fc7)
     tf.logging.info("Getting labels...")
-    filenames = gfile.Glob(os.path.join(eval_dir, "*.tfrecords"))
+    filenames = gfile.Glob(os.path.join(eval_dir, "*.tfrecord"))
     dataset = tf.data.TFRecordDataset(tf.data.Dataset.list_files(filenames))
     elem = dataset.map(parse_fn).make_one_shot_iterator().get_next()
     labels = []; id = []; seq_no = []; sess = tf.Session()
@@ -455,8 +455,8 @@ def predict_and_export_tfrecords(estimator, eval_input_fn, parse_fn, eval_dir, s
         labels.append(val[4])
     id = id[seq_skip:]; seq_no = seq_no[seq_skip:]; labels = labels[seq_skip:]
     name = os.path.normpath(eval_dir).split(os.sep)[-1]
-    with tf.python_io.TFRecordWriter("{0}.tfrecords".format(name)) as tfrecord_writer:
-        tf.logging.info("Writing {0} examples to {1}.tfrecords...".format(num, name))
+    with tf.python_io.TFRecordWriter("{0}.tfrecord".format(name)) as tfrecord_writer:
+        tf.logging.info("Writing {0} examples to {1}.tfrecord...".format(num, name))
         assert (len(labels)==num), "Lengths must match"
         pred_fc7 = np.array(pred_fc7)
         for index in range(num):

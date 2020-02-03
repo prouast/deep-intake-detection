@@ -151,7 +151,7 @@ def main(args=None):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Evaluate model Stage II')
     parser.add_argument('--prob_dir', type=str, default='eval', nargs='?', help='Directory with eval data.')
-    parser.add_argument('--min_dist', type=int, default=128, nargs='?', help='Minimum frames between detections.')
+    parser.add_argument('--min_dist', type=int, default=16, nargs='?', help='Minimum frames between detections.')
     parser.add_argument('--threshold', type=float, default=0.9, nargs='?', help='Detection threshold probability')
     parser.add_argument('--mode', type=str, default='evaluate', nargs='?', help='Evaluation or estimation and evaluation')
     parser.add_argument('--min_threshold', type=float, default=0.5, nargs='?', help='Minimum detection threshold probability')

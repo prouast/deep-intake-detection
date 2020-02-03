@@ -2,24 +2,17 @@
 
 Implementation of various deep neural networks for detection of food and drink intake gestures from video.
 We use recordings from a 360-degree camera to predict frame-level labels.
+Find our published paper (here)[https://ieeexplore.ieee.org/document/8853283].
 
 ## Prepare data for TensorFlow
 
-We use `.tfrecords` files to feed data into the TensorFlow model.
+We use `.tfrecord` files to feed data into the TensorFlow model.
 This includes [TV-L<sup>1</sup> optical flow](https://pequan.lip6.fr/~bereziat/cours/master/vision/papers/zach07.pdf), which is stored in the file alongside with raw frames and labels.
-A dependency due to optical flow calculation is [opencv](https://opencv.org).
-To generate these files from data in folder `train`:
-
-```
-$ python video_to_tfrecords.py --directory=train
-```
-
-Since we pre-compute optical flow, it has to be decided at this stage whether the framerate is to be downsampled.
-Use the argument `keep_every` to change this setting (defaults to 3, which downsamples from 24 fps to 8 fps).
+A script and instructions for generating these files can be found at the (video-sensor-processing repository)[https://github.com/prouast/video-sensor-processing].
 
 ## Train and evaluate deep neural network classifier
 
-Train and evaluate the TensorFlow classifier using the `.tfrecords` files in train/eval folders.
+Train and evaluate the TensorFlow classifier using the `.tfrecord` files in train/eval folders.
 
 ```
 $ python oreba_main.py
@@ -40,7 +33,7 @@ Specify model architecture and other settings using the flags introduced below, 
 | --eval_dir | Directory for eval data (defaults to 'eval') |
 | --finetune_only | If using warmstart, specify what types of layer should be finetuned (defaults to all) |
 | --label_category | Label category for classification task (defaults to 1) |
-| --mode | Which mode to start in {train_and_evaluate, predict_and_export_csv, predict_and_export_tfrecords} (defaults to train_and_evaluate) |
+| --mode | Which mode to start in {train_and_evaluate, predict_and_export_csv, predict_and_export_tfrecord} (defaults to train_and_evaluate) |
 | --model | Select the model: {oreba_2d_cnn, oreba_cnn_lstm, oreba_two_stream, oreba_slowfast, resnet_2d_cnn, resnet_3d_cnn, resnet_cnn_lstm, resnet_two_stream, resnet_slowfast} |
 | --model_dir | Output directory for model and training stats (defaults to 'run') |
 | --num_frames | Specify how many frames are in train data |
@@ -70,6 +63,16 @@ Specify model architecture and other settings using the flags introduced below, 
 - `resnet_two_stream` can be warmstarted with `resnet_2d_cnn`
 
 Checkpoints for these models have to be present in the directory specificied in `--warmstart_dir`.
+
+### Evaluate F1 score
+
+To evaluate F1 score on exported frame-level probabilities in `folder`, run
+
+```
+$ python eval.py --prob_dir=folder
+```
+
+You can use the flag `--threshold` to specify the threshold above which a frame will be classified as Intake, or use `--mode=estimate` to let the model search for the threshold between `--min_threshold` and `--max_threshold` that maximizes F1.
 
 ## Results on OREBA-LBY dataset
 

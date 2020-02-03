@@ -52,7 +52,7 @@ tf.app.flags.DEFINE_enum(
     help='Label category for classification task {main, sub, hand, utensil}.')
 tf.app.flags.DEFINE_enum(
     name='mode', default="train_and_evaluate",
-    enum_values=["train_and_evaluate", "predict_and_export_csv", "predict_and_export_tfrecords", "export_saved_model"],
+    enum_values=["train_and_evaluate", "predict_and_export_csv", "predict_and_export_tfrecord", "export_saved_model"],
     help='What mode should tensorflow be started in')
 tf.app.flags.DEFINE_string(
     name='model', default='oreba_2d_cnn',
@@ -114,7 +114,7 @@ def oreba_input_fn(is_training, use_sequence_input, use_frames, use_flows,
         use_sequence_input: Enable/disable sliding window batch
         use_frames: Enable/disable frames as features
         use_flows: Enable/disable flows as features
-        data_dir: The directory to the tfrecords files
+        data_dir: The directory to the tfrecord files
         label_category: The label category to be used
         dtype: Data type for features/images
 
@@ -123,7 +123,7 @@ def oreba_input_fn(is_training, use_sequence_input, use_frames, use_flows,
     """
 
     # Scan for training files
-    filenames = gfile.Glob(os.path.join(data_dir, "*.tfrecords"))
+    filenames = gfile.Glob(os.path.join(data_dir, "*.tfrecord"))
     if not filenames:
         raise RuntimeError('No files found.')
     tf.logging.info("Found {0} files.".format(str(len(filenames))))
@@ -133,7 +133,7 @@ def oreba_input_fn(is_training, use_sequence_input, use_frames, use_flows,
     if is_training:
         files = files.shuffle(NUM_SHARDS)
 
-    # Read tfrecords, perform pre-processing and data augmentation
+    # Read tfrecord, perform pre-processing and data augmentation
     dataset = files.interleave(
         lambda filename:
             tf.data.TFRecordDataset(filename)
@@ -388,7 +388,7 @@ def oreba_model_fn(features, labels, mode, params):
 
     # Set up features
     if FLAGS.mode == 'train_and_evaluate' or FLAGS.mode == 'predict_and_export_csv' or \
-        FLAGS.mode == 'predict_and_export_tfrecords':
+        FLAGS.mode == 'predict_and_export_tfrecord':
 
         if FLAGS.model == 'oreba_2d_cnn' or FLAGS.model == 'resnet_2d_cnn' or \
             FLAGS.model == 'oreba_cnn_lstm' or FLAGS.model == 'resnet_cnn_lstm' or \
