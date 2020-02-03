@@ -14,7 +14,7 @@ import best_checkpoint_exporter
 tf.logging.set_verbosity(tf.logging.DEBUG)
 
 
-def main(flags, model_fn, input_fn, parse_fn, warmstart_settings):
+def main(flags, model_fn, input_fn, parse_fn, serving_input_receiver_fn, warmstart_settings):
     """Define and run the experiment.
 
     Args:
@@ -25,6 +25,7 @@ def main(flags, model_fn, input_fn, parse_fn, warmstart_settings):
             that the estimator can train on.
         parse_fn: Dataset parsing function to be able to retrieve label
             information in predict mode.
+        serving_input_receiver_fn: Input fn for serving
         warmstart_settings: Settings for warmstarting the model from checkpoint
     """
 
@@ -124,6 +125,14 @@ def main(flags, model_fn, input_fn, parse_fn, warmstart_settings):
         seq_skip = flags.sequence_length - 1 if flags.use_sequence_input else 0
         predict_and_export_tfrecords(estimator, eval_input_fn, parse_fn,
             flags.eval_dir, seq_skip)
+    elif flags.mode == "export_saved_model":
+        export_saved_model(estimator, serving_input_receiver_fn)
+
+
+def export_saved_model(estimator, serving_input_receiver_fn):
+    estimator.export_saved_model(
+        export_dir_base='export',
+        serving_input_receiver_fn=serving_input_receiver_fn)
 
 
 def model_fn(features, labels, mode, params, model):
@@ -140,7 +149,8 @@ def model_fn(features, labels, mode, params, model):
     is_predicting = mode == tf.estimator.ModeKeys.PREDICT
 
     # Generate a summary node for the images
-    add_image_summaries(features, params)
+    if is_training:
+        add_image_summaries(features, params)
 
     # Apply the model, if fp16 cast to fp32 for numerical stability.
     logits, fc7 = model(features, is_training)
@@ -228,15 +238,15 @@ def model_fn(features, labels, mode, params, model):
                 learning_rate=learning_rate, global_step=global_step,
                 decay_steps=params.steps_per_epoch, decay_rate=params.decay_rate)
 
-        def _grad_filter(vars):
+        def _grad_filter(grad_vars):
             """Only apply gradient updates to the certain layers."""
             if 'dense_lstm' in params.finetune_only:
-                return [v for v in vars \
-                    if 'dense' in v.name or 'lstm' in v.name]
+                return [g_v for g_v in grad_vars \
+                    if 'dense' in g_v[1].name or 'lstm' in g_v[1].name]
             elif 'dense' in params.finetune_only:
-                return [v for v in vars if 'dense' in v.name]
+                return [g_v for g_v in grad_vars if 'dense' in g_v[1].name]
             else:
-                return vars
+                return grad_vars
 
         # Learning rate
         learning_rate = _decay_fn(params.base_learning_rate, global_step)

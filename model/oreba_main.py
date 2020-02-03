@@ -52,7 +52,7 @@ tf.app.flags.DEFINE_enum(
     help='Label category for classification task {main, sub, hand, utensil}.')
 tf.app.flags.DEFINE_enum(
     name='mode', default="train_and_evaluate",
-    enum_values=["train_and_evaluate", "predict_and_export_csv", "predict_and_export_tfrecords"],
+    enum_values=["train_and_evaluate", "predict_and_export_csv", "predict_and_export_tfrecords", "export_saved_model"],
     help='What mode should tensorflow be started in')
 tf.app.flags.DEFINE_string(
     name='model', default='oreba_2d_cnn',
@@ -387,18 +387,27 @@ def oreba_model_fn(features, labels, mode, params):
         warmstart=FLAGS.warmstart_dir is not None)
 
     # Set up features
-    if FLAGS.model == 'oreba_2d_cnn' or FLAGS.model == 'resnet_2d_cnn' or \
-        FLAGS.model == 'oreba_cnn_lstm' or FLAGS.model == 'resnet_cnn_lstm' or \
-        FLAGS.model == 'oreba_3d_cnn' or FLAGS.model == 'resnet_3d_cnn' or \
-        FLAGS.model == 'oreba_slowfast' or FLAGS.model == 'resnet_slowfast':
+    if FLAGS.mode == 'train_and_evaluate' or FLAGS.mode == 'predict_and_export_csv' or \
+        FLAGS.mode == 'predict_and_export_tfrecords':
 
-        frames = features[0]; flows = features[1]
-        if FLAGS.use_frames:
-            assert not FLAGS.use_flows, "Cannot use frames with flows for this model."
-            features = frames
-        if FLAGS.use_flows:
-            assert not FLAGS.use_frames, "Cannot use frames with flows for this model."
-            features = flows
+        if FLAGS.model == 'oreba_2d_cnn' or FLAGS.model == 'resnet_2d_cnn' or \
+            FLAGS.model == 'oreba_cnn_lstm' or FLAGS.model == 'resnet_cnn_lstm' or \
+            FLAGS.model == 'oreba_3d_cnn' or FLAGS.model == 'resnet_3d_cnn' or \
+            FLAGS.model == 'oreba_slowfast' or FLAGS.model == 'resnet_slowfast':
+
+            frames = features[0]; flows = features[1]
+            if FLAGS.use_frames:
+                assert not FLAGS.use_flows, "Cannot use frames with flows for this model."
+                features = frames
+            if FLAGS.use_flows:
+                assert not FLAGS.use_frames, "Cannot use frames with flows for this model."
+                features = flows
+
+    elif FLAGS.mode == 'export_saved_model':
+
+        assert not FLAGS.model == 'oreba_two_stream', "This model is not supported for export"
+        assert not FLAGS.model == 'resnet_two_stream', "This model is not supported for export"
+        features = features['frames']
 
     # Set up labels
     if FLAGS.use_sequence_input and mode == tf.estimator.ModeKeys.TRAIN:
@@ -474,6 +483,25 @@ def oreba_model_fn(features, labels, mode, params):
         model=model)
 
     return model_fn
+
+
+def _get_serving_input_receiver_fn():
+
+    if FLAGS.use_sequence_input:
+        features = {
+            "frames": tf.placeholder(dtype=tf.float32,
+                shape=[None, SEQ_LENGTH, FRAME_SIZE, FRAME_SIZE, NUM_CHANNELS])}
+    else:
+        features = {
+            "frames": tf.placeholder(dtype=tf.float32,
+                shape=[None, FRAME_SIZE, FRAME_SIZE, NUM_CHANNELS])}
+
+    serving_input_receiver_fn = tf.estimator.export.build_raw_serving_input_receiver_fn(
+        features=features,
+        default_batch_size=None
+    )
+
+    return serving_input_receiver_fn
 
 
 def oreba_warmstart_settings():
@@ -560,6 +588,7 @@ def run_oreba(flags_obj):
         model_fn=oreba_model_fn,
         input_fn=oreba_input_fn,
         parse_fn=_get_input_parser(False, False, flags.label_category),
+        serving_input_receiver_fn=_get_serving_input_receiver_fn(),
         warmstart_settings=oreba_warmstart_settings())
 
 
