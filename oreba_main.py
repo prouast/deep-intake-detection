@@ -282,13 +282,13 @@ def _get_transformation_parser(use_sequence_input, is_training, use_frames, use_
 
             # Crop the central [height, width].
             if use_frames:
-                image_data = tf.image.resize_image_with_crop_or_pad(
+                image_data = tf.image.resize_with_crop_or_pad(
                     image_data, FRAME_SIZE, FRAME_SIZE)
                 size = [SEQ_LENGTH, FRAME_SIZE, FRAME_SIZE, NUM_CHANNELS] \
                     if use_sequence_input else [FRAME_SIZE, FRAME_SIZE, NUM_CHANNELS]
                 image_data.set_shape(size)
             if use_flows:
-                flow_data = tf.image.resize_image_with_crop_or_pad(
+                flow_data = tf.image.resize_with_crop_or_pad(
                     flow_data, FRAME_SIZE, FRAME_SIZE)
                 size = [SEQ_LENGTH, FRAME_SIZE, FRAME_SIZE, 2] \
                     if use_sequence_input else [FRAME_SIZE, FRAME_SIZE, 2]

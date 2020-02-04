@@ -413,11 +413,11 @@ def predict_and_export_csv(estimator, eval_input_fn, parse_fn, eval_dir, seq_ski
     # Get labels and ids
     filenames = gfile.Glob(os.path.join(eval_dir, "*.tfrecord"))
     dataset = tf.data.TFRecordDataset(tf.data.Dataset.list_files(filenames))
-    elem = dataset.map(parse_fn).make_one_shot_iterator().get_next()
-    labels = []; id = []; seq_no = []; sess = tf.Session()
+    elem = tf.compat.v1.data.make_one_shot_iterator(dataset.map(parse_fn)).get_next()
+    labels = []; id = []; seq_no = []; sess = tf.compat.v1.Session()
     for i in range(0, num + seq_skip):
         val = sess.run(elem)
-        id.append(val[0])
+        id.append(val[0].decode("utf-8"))
         seq_no.append(val[1])
         labels.append(val[4])
     id = id[seq_skip:]; seq_no = seq_no[seq_skip:]; labels = labels[seq_skip:]
@@ -425,7 +425,7 @@ def predict_and_export_csv(estimator, eval_input_fn, parse_fn, eval_dir, seq_ski
     name = os.path.normpath(eval_dir).split(os.sep)[-1]
     logging.info("Writing {0} examples to {1}.csv...".format(num, name))
     pred_array = np.column_stack((id, seq_no, labels, pred_probs_1))
-    np.savetxt("{0}.csv".format(name), pred_array, delimiter=",", fmt=['%i','%i','%i','%f'])
+    np.savetxt("{0}.csv".format(name), pred_array, delimiter=",", fmt=['%s','%s','%s','%s'])
 
 
 def _int64_feature(value):
@@ -448,7 +448,7 @@ def predict_and_export_tfrecord(estimator, eval_input_fn, parse_fn, eval_dir, se
     filenames = gfile.Glob(os.path.join(eval_dir, "*.tfrecord"))
     dataset = tf.data.TFRecordDataset(tf.data.Dataset.list_files(filenames))
     elem = dataset.map(parse_fn).make_one_shot_iterator().get_next()
-    labels = []; id = []; seq_no = []; sess = tf.Session()
+    labels = []; id = []; seq_no = []; sess = tf.compat.v1.Session()
     for i in range(0, num + seq_skip):
         val = sess.run(elem)
         id.append(val[0])
