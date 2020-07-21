@@ -74,8 +74,9 @@ $ python eval.py --prob_dir=folder
 
 You can use the flag `--threshold` to specify the threshold above which a frame will be classified as Intake, or use `--mode=estimate` to let the model search for the threshold between `--min_threshold` and `--max_threshold` that maximizes F1.
 
-## Results on OREBA-LBY dataset
+## Results on OREBA-DIS dataset
 
+Our models are trained on the [OREBA-DIS dataset](https://www.newcastle.edu.au/oreba), which is available to research groups.
 The following models have been trained on the training set of 62 participants to distinguish between idle and intake frames.
 Unweighted average recall (UAR) is the average classification accuracy for idle and intake frames on the test set of 20 participants.
 F1 is based on actual detection of individual intake gestures on the test set based on the evaluation scheme proposed by [Kyritsis et al.](https://ieeexplore.ieee.org/abstract/document/8606156).   
