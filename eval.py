@@ -18,7 +18,7 @@ def import_probs_and_labels(filepath, col_label, col_prob):
     for filename in filenames:
         with open(filename) as dest_f:
             for row in csv.reader(dest_f, delimiter=','):
-                labels.append(int(row[col_label]))
+                labels.append(int(float(row[col_label])))
                 probs.append(float(row[col_prob]))
     labels = np.array(labels)
     probs = np.array(probs)
